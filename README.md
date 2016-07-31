@@ -1,19 +1,19 @@
 # Developing Data Products - Assignment
 
-Coursera Data Science Specialization
+## Coursera Data Science Specialization
 
-## Background
+### Background
 
 This application explores the 2015 temperature data for the United States.
 
 There are two datasets used as inputs to create the needed files for the Shiny Application. Both are from NOAA.GOV. 
 
-### Dataset 1: Yearly weather data for 2015 - ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/
+- Dataset 1: Yearly weather data for 2015 - ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/
 
-### Dataset 2: Observation station list - ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt
+- Dataset 2: Observation station list - ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt
  
 
-## Usage
+### Usage
 
 Upon launching the application, the default display is a summary Morris chart with maximum, minimum, and average temperature readings for the entire U.S. in Fahrenheit.
 
@@ -24,7 +24,7 @@ When the user selects a state the Morris chart updates with summary data for the
 By selecting a location, the chart is updated with the observed temperatures for that observation station. Users are then able to explore temperature readings across the state locations or change states as desired.
  
 
-## Data
+### Data
 
 The data from the two NOAA datasets are pre-processed, cleaned, and joined outside of the Shiny Application due to the excessive time required for processing.
 
@@ -32,19 +32,19 @@ The R code for the pre-processing can be found in "Weather Analysis US.Rmd" and 
 
 There are 3 output ".Rds" files that are created to be used as inputs to the Shiny App.
 
-### Rds 1: "wd_2015_US.rds" - Used for individual observation station charts
+- Rds 1: "wd_2015_US.rds" - Used for individual observation station charts
 
-### Rds 2: "state_summary_2015.rds" - Used for individual state charts
+- Rds 2: "state_summary_2015.rds" - Used for individual state charts
 
-### Rds 3: "us_summary_2015.rds" - Used for U.S. summary chart
+- Rds 3: "us_summary_2015.rds" - Used for U.S. summary chart
 
 
-## Shiny Application Location
+### Shiny Application Location
 
 The Shiny Application can be found at: https://tterry231.shinyapps.io/USWeather2015/
 
 
-## Slidify Location
+### Slidify Location
 
-
+The presentation can be found at: http://rpubs.com/tterry231/USTempData
 
