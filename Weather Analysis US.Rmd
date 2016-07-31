@@ -1,0 +1,275 @@
+---
+title: "US Weather Data"
+author: "Tim Terry"
+date: "July 13, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Getting US Weather Data for 2015
+
+```{r}
+setwd("C:/Users/tterry/Dropbox/Weather Data")
+```
+
+This data is from NOAA.GOV for the US: <ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/>.
+
+```{r}
+wd_2015 <- read.csv("Data/2015.csv.gz", sep=",", header=FALSE)
+```
+
+## Data Cleaning
+
+Subset for US data only
+
+```{r}
+wd_2015$V1 <- as.character(wd_2015$V1)
+wd_2015$V3 <- as.character(wd_2015$V3)
+wd_2015_US <- subset(wd_2015, grepl("^US",wd_2015[[1]]))
+
+rm(wd_2015)
+```
+
+Subset for Temperature data
+
+```{r}
+## Valid temp data - TMAX, TMIN, TAVG, TOBS - tenths of degrees Celsius
+
+## Only care about Max and Min
+
+temp_vals <- c("TMAX", "TMIN")
+
+wd_2015_US <- subset(wd_2015_US, wd_2015_US$V3 %in% temp_vals)
+
+## Will not need $v5, $v6, $V7, $V8
+
+wd_2015_US <- subset(wd_2015_US[,1:4])
+```
+
+Reshape data
+
+```{r}
+library(reshape2)
+
+wd_2015_USF <- dcast(wd_2015_US, V1 + V2 ~ V3)
+
+rm(wd_2015_US)
+```
+
+Get rid of rows with NAs
+
+```{r}
+wd_2015_USF <- wd_2015_USF[complete.cases(wd_2015_USF),]
+```
+
+## Format Data for usage in Shiny Apps charting
+
+Calculate average temp
+
+```{r}
+wd_2015_USF$TAVG <- ((wd_2015_USF$TMAX + wd_2015_USF$TMIN)/2)
+```
+
+Convert from 10ths of a degree celsius to celsius
+
+```{r}
+wd_2015_USF$CMAX <- (wd_2015_USF$TMAX/10)
+wd_2015_USF$CMIN <- (wd_2015_USF$TMIN/10)
+wd_2015_USF$CAVG <- (wd_2015_USF$TAVG/10)
+```
+
+Convert celsius to fahrenheit
+
+```{r}
+wd_2015_USF$FMAX <- ((wd_2015_USF$CMAX*1.8)+32)
+wd_2015_USF$FMIN <- ((wd_2015_USF$CMIN*1.8)+32)
+wd_2015_USF$FAVG <- ((wd_2015_USF$CAVG*1.8)+32)
+```
+
+Convert $V2 to date
+
+```{r}
+library(lubridate)
+
+wd_2015_USF$V2 <- ymd(wd_2015_USF$V2)
+
+## Rename first two columns
+
+colnames(wd_2015_USF)[1] <- "Obs_Post"
+colnames(wd_2015_USF)[2] <- "Obs_Date"
+```
+
+Find complete sample rates for observation posts
+
+```{r}
+compl_posts <- as.data.frame(table(wd_2015_USF$Obs_Post))
+compl_posts <- subset(compl_posts, compl_posts$Freq == 365)
+
+complete_posts <- compl_posts$Var1
+
+wd_2015_USF <- subset(wd_2015_USF, wd_2015_USF$Obs_Post %in% complete_posts)
+
+rm(compl_posts)
+rm(complete_posts)
+```
+
+### Read Observation Post data to populate locations and geo coordinates
+
+Set the minimium # of observations allowed for a post to 
+Weather Station Text File
+
+ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt
+
+```{r}
+library(readr)
+
+inputFile <- "Data/ghcnd-stations.txt"
+
+obs_stations <- read_fwf(inputFile, skip=1, fwf_positions(c(1,13,22,32,39,42), c(11,20,30,37,40,71)))
+```
+
+Add columns to weather data for lattitude, longitude, State, Location
+
+```{r}
+wd_2015_USF$lat <- as.numeric(0)
+wd_2015_USF$long <- as.numeric(0)
+wd_2015_USF$state <- as.character(" ")
+wd_2015_USF$location <- as.character(" ")
+```
+
+Loop the two tables to fill in the needed data
+
+```{r}
+## Create vectors for faster operation
+
+wd_post <- wd_2015_USF$Obs_Post
+wd_lat <- wd_2015_USF$lat
+wd_lon <- wd_2015_USF$long
+wd_sta <- wd_2015_USF$state
+wd_loc <- wd_2015_USF$location
+
+obs_stat <- obs_stations$X1
+obs_lat <- obs_stations$X2
+obs_long <- obs_stations$X3
+obs_state <- obs_stations$X5
+obs_loc <- obs_stations$X6
+
+## Start the loop process
+
+beg_time <- Sys.time()
+
+for (i in 1:length(wd_post)) {
+  for (j in 1:length(obs_stat)) {
+    if (wd_post[i] == obs_stat[j]) {
+            wd_lat[i] <- obs_lat[j]
+            wd_lon[i] <- obs_long[j]
+            wd_sta[i] <- obs_state[j]
+            wd_loc[i] <- obs_loc[j]
+            if (i %% 1000 == 0) {
+                    stat_time <- Sys.time()
+                    run_time <- stat_time - beg_time
+                    print(i)
+                    print(run_time)}
+            } } }
+
+end_time <- Sys.time()
+tot_run_time <- end_time - beg_time
+print("Total Run Time:")
+print(tot_run_time)
+
+## Load the vector data into the data frame
+
+wd_2015_USF$lat <- wd_lat
+wd_2015_USF$long <- wd_lon
+wd_2015_USF$state <- wd_sta
+wd_2015_USF$location <- wd_loc
+```
+
+Convert timestamp for future charting with rCharts mPlot in Shiny App
+
+```{r}
+wd_2015_USF$Obs_Date <- as.character(wd_2015_USF$Obs_Date)
+```
+
+## Saving data for use in Shiny App
+
+```{r}
+saveRDS(wd_2015_USF, "Data/wd_2015_US.rds")
+```
+
+Create US Data Summary and save for charting with rCharts mPlot in Shiny App
+
+```{r}
+us_summary <- wd_2015_USF %>%
+              group_by(Obs_Date) %>%
+              summarize(max(FMAX), min(FMIN), round(mean(FAVG),digits = 2), 
+                        max(CMAX), min(CMIN), round(mean(CAVG), digits = 2))
+
+colnames(us_summary)[2:7] <- c("FMAX", "FMIN", "FAVG", "CMAX", "CMIN", "CAVG")
+
+saveRDS(us_summary, "Data/us_summary_2015.rds")
+```
+
+Create US States Data Summary and save for charting with rCharts mPlot in Shiny App
+
+```{r}
+state_summary <- wd_2015_USF %>%
+                 group_by(state, Obs_Date) %>%
+                 summarize(max(FMAX), min(FMIN), round(mean(FAVG), digits = 2),
+                           max(CMAX), min(CMIN), round(mean(CAVG), digits = 2))
+
+colnames(state_summary)[3:8] <- c("FMAX", "FMIN", "FAVG", "CMAX", "CMIN", "CAVG")
+
+saveRDS(state_summary, "Data/state_summary_2015.rds")
+```
+
+Get the unique observation posts used to subset obs_stations for mapping
+
+```{r}
+obs_stations_used <- unique(wd_post)
+
+length(obs_stations_used)
+```
+
+Total of 4,051 observation posts were used.
+
+```{r}
+obs_stations <- subset(obs_stations, obs_stations$X1 %in% obs_stations_used)
+
+saveRDS(obs_stations, "Data/obs_stations_2015.rds")
+```
+
+## Perform cleanup
+
+Remove vectors we don't need
+
+```{r}
+rm(wd_post)
+rm(wd_lat)
+rm(wd_lon)
+rm(wd_sta)
+rm(wd_loc)
+
+rm(obs_stat)
+rm(obs_lat)
+rm(obs_long)
+rm(obs_state)
+rm(obs_loc)
+
+rm(obs_stations_used)
+```
+
+
+
+
+
+
+
+
+
+
+
+
